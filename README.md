@@ -1,109 +1,113 @@
-# StockSense - Inventory Management System
+# StockSense-odoo
+Modular Inventory Management System for real-time stock tracking and streamlined warehouse operations.
+# StockSense - Modular Inventory Management System
 
-A hackathon-ready inventory management prototype built with Flask, SQLite and
-vanilla HTML/CSS/JS. Tracks products, multi-warehouse stock, receipts,
-deliveries, internal transfers and stock adjustments, with a full audit trail
-in a stock ledger.
+**StockSense** is an open-source, modular inventory management system designed for small to medium enterprises. Built for the Odoo Hackathon, it prioritizes clean architecture, clear code structure, and intuitive user experiences.
 
-## Features
+---
 
-- **Authentication** - session-based login/signup/logout with a seeded demo account
-- **Dashboard** - KPI cards (products, stock, low/out of stock, pending documents),
-  stock-by-category and stock-by-warehouse breakdowns, low stock alerts, and a
-  recent stock movements feed
-- **Products** - add/edit/delete, duplicate-SKU prevention, search and category filter
-- **Warehouses** - add/edit, activate/deactivate
-- **Stock** - per-warehouse quantity view with search, warehouse and category filters
-- **Receipts** - create as pending, confirm to increase stock
-- **Delivery Orders** - create as pending, confirm to decrease stock (never below zero)
-- **Internal Transfers** - move stock between warehouses on confirmation
-- **Stock Adjustments** - set a physical count; the difference is posted to the ledger
-- **Stock Ledger** - a full, filterable log of every movement with running balances
-- **Demo data** - one click (or `/seed`) populates warehouses, products and a
-  realistic set of confirmed/pending documents so the dashboard looks alive immediately
+## 🚀 Current Module Implemented
+- **Module 1**: Project Foundation & Product Management
 
-## Technology stack
+---
 
-- **Backend**: Python 3 + Flask
-- **Database**: SQLite3 (parameterized SQL, foreign keys enforced)
-- **Frontend**: HTML5, vanilla CSS (custom design system, no framework), vanilla JS
+## 🛠️ Technology Stack
+- **Backend Framework**: Python 3 + Flask
+- **Database**: SQLite3 (relational, zero-config embedded database)
+- **Frontend**: HTML5, Vanilla CSS3 (Custom design system), Vanilla JavaScript (No heavy JS frameworks)
 - **Templating**: Jinja2
 
-## Directory structure
+---
 
+## 📁 Directory Structure
 ```text
 stocksense/
-├── app.py                  # Flask routes / controllers
-├── requirements.txt
-├── database/
-│   ├── schema.sql           # Table definitions
-│   ├── db.py                # Connection + all CRUD / business logic (stock, ledger)
-│   └── seed.py               # Demo data generator
-├── templates/                # Jinja2 templates (one per page) + base.html shell
+│── app.py                  # Flask route controllers & request handlers
+│── requirements.txt        # Application dependencies (Flask)
+│── README.md               # Project documentation
+│── .gitignore              # Git ignore rules
+│── database/
+│   ├── schema.sql          # SQLite table definitions
+│   ├── db.py               # Database connection & CRUD helper functions
+│   └── seed.py             # Script to seed sample demo products
+│── templates/
+│   ├── base.html           # Main layout template (navbar, flash alerts, footer)
+│   └── products.html       # Products catalog & management page (table & modals)
 └── static/
-    ├── css/style.css        # Design tokens + all component styles
-    └── js/app.js            # Modal handling, flash auto-dismiss
+    ├── css/
+    │   └── style.css       # Clean hackathon design stylesheet
+    └── js/
+        └── products.js     # Modal management & validation scripts
 ```
 
-## Setup
+---
+
+## ⚙️ Installation & Setup
+
+### 1. Prerequisites
+- Python 3.8+ installed on your machine.
+
+### 2. Create Virtual Environment
+```bash
+# Navigate to the project directory
+cd stocksense
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# macOS / Linux:
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## ▶️ Running the Application
 
 ```bash
-# from the project root
-python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
-pip install -r requirements.txt
 python app.py
 ```
+Open your browser and navigate to:
+👉 `http://127.0.0.1:5000`
 
-Open **http://127.0.0.1:5000** in your browser. The SQLite file
-(`database/stocksense.db`) is created automatically on first run.
+### Optional: Populating Demo Data
+To test with pre-configured sample products, you can either:
+- Click the **"+ Add Demo Data"** button in the top navigation bar.
+- Or run the seed script directly from the terminal:
+  ```bash
+  python database/seed.py
+  ```
 
-## Demo login
+---
 
-```
-Email:    admin@stocksense.com
-Password: admin123
-```
+## 💡 How Product Management Works
+1. **Database Abstraction (`database/db.py`)**: All SQLite SQL queries use **parameterized placeholders (`?`)** to isolate database operations safely from presentation logic.
+2. **Product Fields**: Each product includes Name, unique SKU/Code, Category, Unit of Measure, Initial Stock, and Reorder Level.
+3. **Validations Enforced**:
+   - Required field check on all inputs.
+   - Non-negative constraint on Initial Stock (`>= 0`) and Reorder Level (`>= 0`).
+   - Case-insensitive duplicate SKU prevention.
+4. **Low Stock Alerts**: Items where `Initial Stock <= Reorder Level` are automatically tagged with a `⚠️ Low Stock` warning badge.
 
-## Loading demo data
+---
 
-Click **"Load demo data"** in the sidebar, or visit `/seed` directly. This
-creates 3 warehouses, 5 products, opening stock balances, and a mix of
-confirmed and pending receipts/deliveries/transfers/adjustments so every
-page (and the dashboard) has real numbers right away. Visit `/clear-demo`
-to wipe everything and start over.
+## ⚠️ Current Limitations (Module 1 Scope)
+- Initial Stock is currently recorded as the baseline starting balance.
+- Stock movements (receipts, deliveries, adjustments) and multi-location warehouse stock are not yet active in Module 1.
 
-## Suggested demo workflow
+---
 
-1. Log in with the demo account.
-2. Load demo data from the sidebar.
-3. View the **Dashboard** - note the KPIs and the low stock alert list.
-4. Open **Products**, add a new product with an opening warehouse quantity.
-5. Go to **Receipts**, create a receipt for that product and **confirm** it -
-   watch stock increase.
-6. Go to **Deliveries**, create and confirm a delivery for the same product -
-   stock decreases (and can't go negative - try over-delivering to see it blocked).
-7. Go to **Transfers**, move stock from one warehouse to another and confirm.
-8. Go to **Adjustments**, set a physical count and confirm - the delta posts
-   automatically.
-9. Open **Stock Ledger** to see every one of those movements with running
-   balances, and return to the **Dashboard** to see the KPIs and recent
-   movements feed reflect all of it.
-
-## Database
-
-SQLite tables (see `database/schema.sql`): `users`, `warehouses`, `products`,
-`stock`, `receipts`, `receipt_items`, `deliveries`, `delivery_items`,
-`transfers`, `adjustments`, `stock_ledger`. All writes go through
-`database/db.py` using parameterized queries; stock changes and ledger
-entries are always written together via `record_movement()` so the ledger
-can never drift from the live `stock` table. Deleting a product cascades to
-its stock rows and document history.
-
-## Known limitations (hackathon scope)
-
-- Single-item receipts/deliveries (one product per document) rather than
-  multi-line documents - kept intentionally simple for the demo.
-- No role-based permissions - any logged-in user has full access.
-- The Flask dev server is used as-is; use a production WSGI server for
-  anything beyond a demo.
+## 🔮 Planned Future Modules
+- **Module 2**: Receipts (Incoming Stock Purchases & Vendor Log)
+- **Module 3**: Deliveries (Outgoing Sales Orders & Customer Dispatch)
+- **Module 4**: Internal Transfers (Warehouse & Location Stock Movements)
+- **Module 5**: Stock Adjustments (Physical Inventory Audits & Discrepancies)
+- **Module 6**: Stock Ledger & Inventory Valuation Report
+- **Module 7**: Executive Dashboard & Reorder Automated Notifications
