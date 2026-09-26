@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Products - StockSense Inventory{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-titles">
+        <h1 class="page-title">Product Catalog</h1>
+        <p class="page-subtitle">Manage inventory items, SKUs, initial stock, and reorder alerts.</p>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-primary" onclick="openAddModal()">
+            <span class="btn-icon">+</span> Add New Product
+        </button>
+    </div>
+</div>
+
+<!-- Metrics Overview Cards -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-icon icon-blue">📦</div>
+        <div class="metric-data">
+            <span class="metric-label">Total Products</span>
+            <span class="metric-value" id="totalProductsCount">{{ total_products }}</span>
+        </div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-icon icon-amber">⚠️</div>
+        <div class="metric-data">
+            <span class="metric-label">Low Stock Items</span>
+            <span class="metric-value text-amber" id="lowStockCount">{{ low_stock_count }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Controls -->
+<div class="toolbar-card">
+    <form action="{{ url_for('list_products') }}" method="GET" class="search-form">
+        <div class="search-input-group">
+            <span class="search-icon">🔍</span>
+            <input 
+                type="text" 
+                name="q" 
+                id="tableSearchInput"
+                class="form-control search-field" 
+                placeholder="Search products by name or SKU..." 
+                value="{{ search_query }}"
+                onkeyup="quickFilterTable()"
+            >
+            {% if search_query %}
+                <a href="{{ url_for('list_products') }}" class="search-clear-btn" title="Clear search">&times;</a>
+            {% endif %}
+        </div>
+        <button type="submit" class="btn btn-secondary">Search</button>
+    </form>
+</div>
+
+<!-- Products Table Card -->
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="data-table" id="productsTable">
+            <thead>
+                <tr>
+                    <th>SKU / Code</th>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Unit</th>
+                    <th class="text-right">Initial Stock</th>
+                    <th class="text-right">Reorder Level</th>
+                    <th>Status</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if products %}
+                    {% for product in products %}
+                    {% set is_low_stock = product.initial_stock <= product.reorder_level %}
+                    <tr class="product-row" data-name="{{ product.name | lower }}" data-sku="{{ product.sku | lower }}">
+                        <td class="font-mono text-bold">{{ product.sku }}</td>
+                        <td class="font-semibold">{{ product.name }}</td>
+                        <td><span class="category-badge">{{ product.category }}</span></td>
+                        <td>{{ product.unit }}</td>
+                        <td class="text-right font-mono">{{ "%.2f"|format(product.initial_stock) if product.initial_stock % 1 != 0 else product.initial_stock|int }}</td>
+                        <td class="text-right font-mono">{{ "%.2f"|format(product.reorder_level) if product.reorder_level % 1 != 0 else product.reorder_level|int }}</td>
+                        <td>
+                            {% if is_low_stock %}
+                                <span class="badge badge-warning">⚠️ Low Stock</span>
+                            {% else %}
+                                <span class="badge badge-success">Sufficient</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="action-buttons">
+                                <button 
+                                    type="button" 
+                                    class="btn-icon-action edit-btn" 
+                                    title="Edit Product"
+                                    onclick="openEditModal('{{ product.id }}', '{{ product.name|escape }}', '{{ product.sku|escape }}', '{{ product.category|escape }}', '{{ product.unit|escape }}', '{{ product.initial_stock }}', '{{ product.reorder_level }}')"
+                                >
+                                    ✏️ Edit
+                                </button>
+                                <button 
+                                    type="button" 
+                                    class="btn-icon-action delete-btn" 
+                                    title="Delete Product"
+                                    onclick="openDeleteModal('{{ product.id }}', '{{ product.name|escape }}', '{{ product.sku|escape }}')"
+                                >
+                                    🗑️ Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr id="emptyTableRow">
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-icon">📭</div>
+                            <h3>No Products Found</h3>
+                            <p>Get started by adding your first product to the inventory catalog.</p>
+                            <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Add Product</button>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<!-- 1. ADD PRODUCT MODAL -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">Add New Product</h3>
+            <button class="modal-close-btn" onclick="closeAddModal()">&times;</button>
+        </div>
+        <form action="{{ url_for('create_product') }}" method="POST" onsubmit="return validateProductForm(this)">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="add_name" class="form-label">Product Name <span class="required">*</span></label>
+                        <input type="text" id="add_name" name="name" class="form-control" placeholder="e.g. Wireless Ergonomic Mouse" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="add_sku" class="form-label">SKU / Code <span class="required">*</span></label>
+                        <input type="text" id="add_sku" name="sku" class="form-control font-mono" placeholder="e.g. ELEC-001" required>
+                        <small class="form-help">Must be unique across all products.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="add_category" class="form-label">Category <span class="required">*</span></label>
+                        <input type="text" id="add_category" name="category" class="form-control" placeholder="e.g. Electronics" list="categoryOptions" required>
+                        <datalist id="categoryOptions">
+                            <option value="Electronics"></option>
+                            <option value="Furniture"></option>
+                            <option value="Stationery"></option>
+                            <option value="Raw Materials"></option>
+                            <option value="Finished Goods"></option>
+                        </datalist>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="add_unit" class="form-label">Unit of Measure <span class="required">*</span></label>
+                        <select id="add_unit" name="unit" class="form-control" required>
+                            <option value="" disabled selected>Select unit...</option>
+                            <option value="pcs">Pieces (pcs)</option>
+                            <option value="boxes">Boxes</option>
+                            <option value="kg">Kilograms (kg)</option>
+                            <option value="meters">Meters (m)</option>
+                            <option value="liters">Liters (L)</option>
+                            <option value="sets">Sets</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="add_initial_stock" class="form-label">Initial Stock <span class="required">*</span></label>
+                        <input type="number" step="any" min="0" id="add_initial_stock" name="initial_stock" class="form-control font-mono" placeholder="0" required>
+                        <small class="form-help">Starting baseline stock quantity (non-negative).</small>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="add_reorder_level" class="form-label">Reorder Level <span class="required">*</span></label>
+                        <input type="number" step="any" min="0" id="add_reorder_level" name="reorder_level" class="form-control font-mono" placeholder="0" required>
+                        <small class="form-help">Triggers low stock alert when stock falls to or below this level.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeAddModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- 2. EDIT PRODUCT MODAL -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">Edit Product</h3>
+            <button class="modal-close-btn" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editProductForm" method="POST" onsubmit="return validateProductForm(this)">
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="edit_name" class="form-label">Product Name <span class="required">*</span></label>
+                        <input type="text" id="edit_name" name="name" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_sku" class="form-label">SKU / Code <span class="required">*</span></label>
+                        <input type="text" id="edit_sku" name="sku" class="form-control font-mono" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_category" class="form-label">Category <span class="required">*</span></label>
+                        <input type="text" id="edit_category" name="category" class="form-control" list="categoryOptions" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_unit" class="form-label">Unit of Measure <span class="required">*</span></label>
+                        <select id="edit_unit" name="unit" class="form-control" required>
+                            <option value="pcs">Pieces (pcs)</option>
+                            <option value="boxes">Boxes</option>
+                            <option value="kg">Kilograms (kg)</option>
+                            <option value="meters">Meters (m)</option>
+                            <option value="liters">Liters (L)</option>
+                            <option value="sets">Sets</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit_initial_stock" class="form-label">Initial Stock <span class="required">*</span></label>
+                        <input type="number" step="any" min="0" id="edit_initial_stock" name="initial_stock" class="form-control font-mono" required>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="edit_reorder_level" class="form-label">Reorder Level <span class="required">*</span></label>
+                        <input type="number" step="any" min="0" id="edit_reorder_level" name="reorder_level" class="form-control font-mono" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<!-- 3. DELETE CONFIRMATION MODAL -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-dialog modal-dialog-sm">
+        <div class="modal-header header-danger">
+            <h3 class="modal-title">Delete Product</h3>
+            <button class="modal-close-btn" onclick="closeDeleteModal()">&times;</button>
+        </div>
+        <form id="deleteProductForm" method="POST">
+            <div class="modal-body">
+                <p class="delete-warning-text">
+                    Are you sure you want to delete <strong id="deleteProductName"></strong> (<span id="deleteProductSku" class="font-mono"></span>)?
+                </p>
+                <p class="text-muted text-sm">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger">Confirm Delete</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/products.js') }}"></script>
+{% endblock %}
